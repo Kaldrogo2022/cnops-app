@@ -40,6 +40,12 @@ jobs:
         # 4. تعديل إعدادات الأندرويد لدعم الواجهة الحديثة (رفع نسخة SDK)
         sed -i 's/flutter.minSdkVersion/20/g' android/app/build.gradle
 
+        # 5. إضافة صلاحية الإنترنت بشكل تلقائي لملف الأندرويد
+        sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
+
+        # 6. إضافة صلاحية تجاوز أخطاء الشبكة والأمان
+        sed -i 's/<application/<application android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml
+
     - name: Build APK (Release Mode)
       run: |
         cd app_build
