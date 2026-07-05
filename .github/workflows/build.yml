@@ -1,0 +1,52 @@
+name: Build Futuristic CNOPS APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set up Java
+      uses: actions/setup-java@v3
+      with:
+        distribution: 'zulu'
+        java-version: '17'
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.22.0'
+        channel: 'stable'
+
+    - name: Generate Flutter Project & Inject Code
+      run: |
+        # 1. إنشاء مشروع فلاتر جديد تلقائياً
+        flutter create app_build
+        
+        # 2. نقل الكود الخاص بك إلى داخل المشروع
+        cp main.dart app_build/lib/main.dart
+        
+        # 3. الدخول للمشروع وإضافة حزمة متصفح الويب
+        cd app_build
+        flutter pub add webview_flutter
+        
+        # 4. تعديل إعدادات الأندرويد لدعم الواجهة الحديثة (رفع نسخة SDK)
+        sed -i 's/flutter.minSdkVersion/20/g' android/app/build.gradle
+
+    - name: Build APK (Release Mode)
+      run: |
+        cd app_build
+        flutter build apk --release
+
+    - name: Upload APK to GitHub
+      uses: actions/upload-artifact@v3
+      with:
+        name: Futuristic_CNOPS_App
+        path: app_build/build/app/outputs/flutter-apk/app-release.apk
