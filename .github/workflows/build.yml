@@ -1,4 +1,4 @@
-name: Build Futuristic CNOPS APK
+name: Build Matrix CNOPS APK
 
 on:
   push:
@@ -30,20 +30,20 @@ jobs:
         # 1. إنشاء مشروع فلاتر جديد تلقائياً
         flutter create app_build
         
-        # 2. نقل الكود الخاص بك إلى داخل المشروع
+        # 2. نقل الكود المتقدم الخاص بك إلى داخل المشروع الجديد
         cp main.dart app_build/lib/main.dart
         
-        # 3. الدخول للمشروع وإضافة حزمة متصفح الويب
+        # 3. الدخول للمشروع وإضافة حزمة متصفح الويب المتقدمة للعمل في الخلفية
         cd app_build
         flutter pub add webview_flutter
         
-        # 4. تعديل إعدادات الأندرويد لدعم الواجهة الحديثة (رفع نسخة SDK)
+        # 4. تعديل إعدادات الأندرويد لرفع نسخة الـ SDK لتتوافق مع الأنظمة الحديثة
         sed -i 's/flutter.minSdkVersion/20/g' android/app/build.gradle
 
-        # 5. إضافة صلاحية الإنترنت بشكل تلقائي لملف الأندرويد
+        # 5. حقن صلاحيات الوصول الكامل للإنترنت تلقائياً بملف المانيفست الخاص بالأندرويد
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
-
-        # 6. إضافة صلاحية تجاوز أخطاء الشبكة والأمان
+        
+        # 6. السماح بتمرير البيانات والاتصالات النصية المشفرة وغير المشفرة لتفادي أخطاء جدران الحماية
         sed -i 's/<application/<application android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml
 
     - name: Build APK (Release Mode)
@@ -51,8 +51,8 @@ jobs:
         cd app_build
         flutter build apk --release
 
-    - name: Upload APK to GitHub
+    - name: Upload APK to GitHub Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: Futuristic_CNOPS_App
+        name: Cnops_Matrix_App_Pro
         path: app_build/build/app/outputs/flutter-apk/app-release.apk
