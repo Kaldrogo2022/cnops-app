@@ -230,7 +230,7 @@ class ProDashboard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Column(
-                    cross CrossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start, // تم تصحيح الخطأ هنا
                     children: [
                       const Text("بوابة الارتباط الذكي", style: TextStyle(color: Colors.white54, fontSize: 14)),
                       Text(extractedUser, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
