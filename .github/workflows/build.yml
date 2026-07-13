@@ -27,24 +27,16 @@ jobs:
 
     - name: Generate Flutter Project & Inject Code
       run: |
-        # 1. إنشاء مشروع فلاتر جديد تلقائياً
         flutter create app_build
-        
-        # 2. نقل الكود المتقدم الخاص بك إلى داخل المشروع الجديد
         cp main.dart app_build/lib/main.dart
-        
-        # 3. الدخول للمشروع وإضافة حزمة متصفح الويب المتقدمة للعمل في الخلفية
         cd app_build
         flutter pub add webview_flutter
         
-        # 4. تعديل إعدادات الأندرويد لرفع نسخة الـ SDK لتتوافق مع الأنظمة الحديثة
+        # تحديث نسخة الأندرويد المطلوبة
         sed -i 's/flutter.minSdkVersion/20/g' android/app/build.gradle
-
-        # 5. حقن صلاحيات الوصول الكامل للإنترنت تلقائياً بملف المانيفست الخاص بالأندرويد
-        sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
         
-        # 6. السماح بتمرير البيانات والاتصالات النصية المشفرة وغير المشفرة لتفادي أخطاء جدران الحماية
-        sed -i 's/<application/<application android:usesCleartextTraffic="true"/g' android/app/src/main/AndroidManifest.xml
+        # حقن صلاحيات الإنترنت بطريقة آمنة لا تكسر كود XML
+        sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>' android/app/src/main/AndroidManifest.xml
 
     - name: Build APK (Release Mode)
       run: |
