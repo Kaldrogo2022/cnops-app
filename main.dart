@@ -27,7 +27,6 @@ class CnopsUltimateApp extends StatelessWidget {
   }
 }
 
-// مدير الحالات الرئيسي للتطبيق التحكم بالواجهات الأصلية
 enum AppStep { login, otpInput, dashboard }
 
 class MainApplicationManager extends StatefulWidget {
@@ -56,17 +55,14 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
       ..setBackgroundColor(const Color(0xFFFFFFFF))
       ..setNavigationDelegate(
         NavigationDelegate(
-          onPageFinished: (String url) {
+          onPageFinished: (String url) async {
             if (mounted) {
               setState(() { _isPageLoading = false; });
             }
             
-            // إذا تغير الرابط ونجح الدخول النهائي إلى لوحة تحكم CNOPS
-            if (!url.toLowerCase().contains('connexion') && !url.toLowerCase().contains('login') && !_isPageLoading) {
-              setState(() {
-                _isLoadingStatus = false;
-                _currentStep = AppStep.dashboard;
-              });
+            // الفحص الديناميكي بعد انتهاء تحميل أي صفحة في الخلفية
+            if (_isLoadingStatus) {
+              _verifyWebsiteResponse(url);
             }
           },
         ),
@@ -74,7 +70,60 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
       ..loadRequest(Uri.parse('https://www.cnops.org.ma/Connexion'));
   }
 
-  // 1. إرسال المرحلة الأولى (اسم المستخدم وكلمة المرور)
+  // دالة ذكية لفحص رد فعل الموقع الحقيقي ومنع الانتقال العشوائي
+  void _verifyWebsiteResponse(String currentUrl) async {
+    // 1. التحقق مما إذا ظهرت رسالة خطأ في صفحة الموقع (بسبب معطيات وهمية)
+    String checkErrorJs = """
+      (function() {
+        var pageText = document.body.innerText.toLowerCase();
+        // البحث عن الكلمات الدلالية للأخطاء في موقع CNOPS
+        if (pageText.includes('incorrect') || pageText.includes('erreur') || pageText.includes('خطأ') || pageText.includes('فشل')) {
+          return "LOGIN_FAILED";
+        }
+        return "NO_ERROR";
+      })();
+    """;
+
+    String errorResult = await _headlessController.runJavaScriptReturningResult(checkErrorJs) as String;
+    // تنظيف النتيجة من الاقتباسات الزائدة الناتجة عن الـ JSON
+    errorResult = errorResult.replaceAll('"', '');
+
+    if (errorResult == "LOGIN_FAILED") {
+      setState(() {
+        _isLoadingStatus = false;
+      });
+      _showCyberSnackBar("فشل الاتصال: معطيات الحساب غير صحيحة ❌", Colors.redAccent);
+      return;
+    }
+
+    // 2. لن ننتقل لـ OTP إلا إذا تغير الرابط أو ظهر حقل الـ OTP حقيقة في الموقع
+    String checkOtpFieldJs = """
+      (function() {
+        var otpField = document.querySelector('input[name*="code" i], input[name*="otp" i], input[id*="code" i]');
+        return otpField ? "OTP_PHASE" : "STILL_WAITING";
+      })();
+    """;
+
+    String otpResult = await _headlessController.runJavaScriptReturningResult(checkOtpFieldJs) as String;
+    otpResult = otpResult.replaceAll('"', '');
+
+    if (otpResult == "OTP_PHASE" || (!currentUrl.toLowerCase().contains('connexion') && currentUrl.contains('html'))) {
+      setState(() {
+        _isLoadingStatus = false;
+        _currentStep = AppStep.otpInput; // الانتقال الآمن فقط عند التأكد
+      });
+      _showCyberSnackBar("تم التحقق من الحساب الحقيقي. أرسل رمز OTP 🔐", Colors.purpleAccent);
+    } else {
+      // إذا استغرق الموقع وقتاً طويلاً ولم تتغير الحالة، نوقف الدوران وننبه المستخدم
+      Future.delayed(const Duration(seconds: 8), () {
+        if (mounted && _isLoadingStatus) {
+          setState(() { _isLoadingStatus = false; });
+          _showCyberSnackBar("انتهت مهلة الطلب، قد يكون هناك نظام حماية الكابتشا يعيق السيرفر المخفي.", Colors.orangeAccent);
+        }
+      });
+    }
+  }
+
   void _submitLoginCredentials() async {
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) return;
 
@@ -109,19 +158,8 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
     """;
 
     await _headlessController.runJavaScript(jsCode);
-
-    // الانتقال تلقائياً لخانة الـ OTP الأصلية بعد 4 ثوانٍ ليتسنى للموقع إرسال الرمز
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) {
-        setState(() {
-          _isLoadingStatus = false;
-          _currentStep = AppStep.otpInput; // فتح خانة الـ OTP
-        });
-      }
-    });
   }
 
-  // 2. حقن كود الـ OTP من الخانة الأصلية إلى المتصفح المخفي
   void _submitOtpCode() async {
     if (_otpController.text.isEmpty) return;
 
@@ -133,7 +171,6 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
 
     String jsCode = """
       (function() {
-        // البحث عن حقل الـ OTP في الصفحة الثانية لموقع CNOPS
         var otpField = document.querySelector('input[name*="code" i], input[name*="otp" i], input[id*="code" i], input[type="text"], input[type="number"]');
         var submitBtn = document.querySelector('button[type="submit"], input[type="submit"]');
         
@@ -155,16 +192,18 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
     """;
 
     await _headlessController.runJavaScript(jsCode);
+  }
 
-    // حماية تضمن النقل في حال تأخر الاستجابة
-    Future.delayed(const Duration(seconds: 5), () {
-      if (mounted && _isLoadingStatus) {
-        setState(() {
-          _isLoadingStatus = false;
-          _currentStep = AppStep.dashboard; // الانتقال للوحة التحكم
-        });
-      }
-    });
+  void _showCyberSnackBar(String message, Color color) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message, style: const TextStyle(fontFamily: 'Roboto', fontWeight: FontWeight.bold)),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      )
+    );
   }
 
   @override
@@ -172,14 +211,11 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
     return Scaffold(
       body: Stack(
         children: [
-          // إبقاء المتصفح مخفياً تماماً بحجم 1 بكسل ليعمل كـ Engine خلف الكواليس
           SizedBox(
             width: 1,
             height: 1,
             child: WebViewWidget(controller: _headlessController),
           ),
-
-          // التحكم بالواجهات بناءً على المرحلة الحالية
           _buildCurrentUIStructure(),
         ],
       ),
@@ -197,7 +233,6 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
     }
   }
 
-  // واجهة تسجيل الدخول الأصلية
   Widget _buildLoginUi() {
     return Center(
       child: SingleChildScrollView(
@@ -237,7 +272,6 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
     );
   }
 
-  // واجهة خانة الـ OTP المخصصة والمستقبلية (التي طلبتها)
   Widget _buildOtpUi() {
     return Center(
       child: SingleChildScrollView(
@@ -314,7 +348,6 @@ class _MainApplicationManagerAppState extends State<MainApplicationManager> {
   }
 }
 
-// لوحة التحكم الاحترافية (تظهر بعد تخطي الـ OTP بنجاح)
 class ProDashboard extends StatelessWidget {
   final String extractedUser;
   const ProDashboard({super.key, required this.extractedUser});
