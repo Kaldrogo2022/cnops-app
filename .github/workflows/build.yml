@@ -32,10 +32,7 @@ jobs:
         cd app_build
         flutter pub add webview_flutter
         
-        # رفع إصدار الأندرويد الأدنى لـ 21 لتفادي أخطاء حزمة المتصفح
         sed -i 's/flutter.minSdkVersion/21/g' android/app/build.gradle
-        
-        # حقن صلاحيات الإنترنت بشكل آمن
         sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET"\/>\n    <application/g' android/app/src/main/AndroidManifest.xml
 
     - name: Build APK (Release Mode)
