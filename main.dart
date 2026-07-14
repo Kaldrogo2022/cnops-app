@@ -1,4 +1,31 @@
-// استبدل هذا الجزء بالكامل داخل ملف main.dart
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'dart:ui';
+import 'dart:async';
+
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const CnopsUltimateApp());
+}
+
+class CnopsUltimateApp extends StatelessWidget {
+  const CnopsUltimateApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'CNOPS Matrix',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(
+        brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF06060C),
+        primaryColor: Colors.cyanAccent,
+        fontFamily: 'Roboto',
+      ),
+      home: const AdvancedLoginScreen(),
+    );
+  }
+}
 
 class AdvancedLoginScreen extends StatefulWidget {
   const AdvancedLoginScreen({super.key});
@@ -14,7 +41,7 @@ class _AdvancedLoginScreenState extends State<AdvancedLoginScreen> {
   
   bool _isPageLoading = true;
   bool _isLoggingIn = false;
-  bool _needsManualInteraction = false; // نظام الطوارئ: إظهار المتصفح عند الكابتشا
+  bool _needsManualInteraction = false;
 
   @override
   void initState() {
@@ -30,7 +57,7 @@ class _AdvancedLoginScreenState extends State<AdvancedLoginScreen> {
               setState(() { _isPageLoading = false; });
             }
             
-            // مراقبة ذكية للرابط: إذا تغير الرابط ولم يعد يحتوي على كلمة Connexion أو Login
+            // مراقبة ذكية للرابط
             if (!url.toLowerCase().contains('connexion') && !url.toLowerCase().contains('login')) {
               _extractInternalDataAndNavigate();
             }
@@ -45,13 +72,12 @@ class _AdvancedLoginScreenState extends State<AdvancedLoginScreen> {
 
     setState(() {
       _isLoggingIn = true;
-      _needsManualInteraction = false; // إبقاء المتصفح مخفياً في البداية
+      _needsManualInteraction = false;
     });
 
     String username = _usernameController.text;
     String password = _passwordController.text;
 
-    // سكربت حقن مرن يبحث عن أي حقل إدخال نشط
     String jsCode = """
       (function() {
         var userField = document.querySelector('input[type="text"], input[name*="user" i], input[id*="user" i]');
@@ -66,8 +92,10 @@ class _AdvancedLoginScreenState extends State<AdvancedLoginScreen> {
             submitBtn.click();
             return "CLICKED";
           } else {
-            document.forms[0].submit();
-            return "SUBMITTED";
+            if(document.forms.length > 0) {
+              document.forms[0].submit();
+              return "SUBMITTED";
+            }
           }
         }
         return "NOT_FOUND";
@@ -76,17 +104,17 @@ class _AdvancedLoginScreenState extends State<AdvancedLoginScreen> {
 
     await _headlessController.runJavaScript(jsCode);
 
-    // نظام الطوارئ والتكيف: إذا لم يتغير الرابط بعد 6 ثوانٍ، فهناك كابتشا أو خطأ
+    // التحقق من الاستجابة بعد 6 ثوانٍ
     Future.delayed(const Duration(seconds: 6), () {
       if (mounted && _isLoggingIn) {
         setState(() {
-          _isLoggingIn = false; // إيقاف الدوران
-          _needsManualInteraction = true; // إظهار شاشة CNOPS الحقيقية ليتصرف المستخدم
+          _isLoggingIn = false;
+          _needsManualInteraction = true;
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('نظام الحماية (Captcha) أو خطأ في البيانات يمنع الدخول التلقائي. يرجى المتابعة يدوياً.'),
-            backgroundColor: Colors.redAccent,
+            content: Text('نظام الحماية أو كود OTP مطلوب. يرجى المتابعة.'),
+            backgroundColor: Colors.orangeAccent,
             duration: Duration(seconds: 4),
           )
         );
@@ -95,7 +123,6 @@ class _AdvancedLoginScreenState extends State<AdvancedLoginScreen> {
   }
 
   void _extractInternalDataAndNavigate() async {
-    // الانتقال التلقائي للوحة التحكم الاحترافية
     if (mounted) {
       Navigator.pushReplacement(
         context,
@@ -114,14 +141,12 @@ class _AdvancedLoginScreenState extends State<AdvancedLoginScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. المتصفح الحقيقي (يظهر فقط في حالة الطوارئ كالكابتشا)
           Visibility(
             visible: _needsManualInteraction,
             maintainState: true,
             child: SafeArea(child: WebViewWidget(controller: _headlessController)),
           ),
 
-          // 2. الواجهة المستقبلية الاحترافية (تختفي إذا ظهر المتصفح)
           if (!_needsManualInteraction)
             Center(
               child: SingleChildScrollView(
@@ -199,6 +224,114 @@ class _AdvancedLoginScreenState extends State<AdvancedLoginScreen> {
                 ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProDashboard extends StatelessWidget {
+  final String extractedUser;
+  final int internalLinksCount;
+
+  const ProDashboard({super.key, required this.extractedUser, required this.internalLinksCount});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF06060C), Color(0xFF111125)],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(25),
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text("بوابة الارتباط الذكي", style: TextStyle(color: Colors.white54, fontSize: 14)),
+                      Text(extractedUser, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.cyanAccent)),
+                    child: const Icon(Icons.analytics_outlined, color: Colors.cyanAccent),
+                  )
+                ],
+              ),
+              const SizedBox(height: 40),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.cyanAccent.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.cyanAccent.withOpacity(0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.hub_rounded, size: 40, color: Colors.cyanAccent),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("قنوات البيانات النشطة", style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 5),
+                            Text("تم فحص واستخراج $internalLinksCount رابطاً داخلياً بنجاح", style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                          ],
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 35),
+              const Text("الخدمات الداخلية المزامنة", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 15),
+              _buildNativeServiceItem("ملفات التعويض عن المرض", "مزامنة تلقائية حية", Icons.medication),
+              _buildNativeServiceItem("وضعية التغطية الصحية", "مؤمنة ونشطة", Icons.health_and_safety),
+              _buildNativeServiceItem("تحميل الشهادات الطبية", "رابط مستخرج جاهز", Icons.file_download),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNativeServiceItem(String title, String subtitle, IconData icon) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 15),
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.02),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.cyanAccent, size: 28),
+          const SizedBox(width: 20),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+              const SizedBox(height: 5),
+              Text(subtitle, style: const TextStyle(color: Colors.white38, fontSize: 12)),
+            ],
+          ),
+          const Spacer(),
+          const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
         ],
       ),
     );
